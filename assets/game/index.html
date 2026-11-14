@@ -1,0 +1,1316 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>قرية العبيدية</title>
+<style>
+html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#fff;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+canvas{position:fixed;inset:0;width:100vw;height:100vh;display:block;touch-action:none}
+#hud{position:fixed;top:calc(env(safe-area-inset-top,0px) + 8px);left:calc(env(safe-area-inset-left,0px) + 12px);right:calc(env(safe-area-inset-right,0px) + 12px);display:flex;justify-content:space-between;align-items:flex-start;pointer-events:none;text-shadow:0 1px 3px rgba(0,0,0,.8)}
+#title{font-size:16px;font-weight:800}
+#phase{font-size:11px;opacity:.75;margin-top:2px}
+#fps,#info{direction:ltr;text-align:left;font-size:11px;opacity:.85;margin-top:4px}
+#info{margin-top:1px;opacity:.65}
+#btns{display:flex;flex-direction:column;gap:4px;pointer-events:auto}
+#btns button{padding:5px 12px;border-radius:12px;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.35);color:#fff;font-size:13px;font-family:inherit}
+#btns button:active{filter:brightness(1.6)}
+#hint{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px) + 8px);left:0;right:0;text-align:center;font-size:11px;opacity:.7;pointer-events:none;text-shadow:0 1px 3px #000}
+#loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#0b0f16;font-size:20px;font-weight:700;z-index:30}
+#err{display:none;position:fixed;left:8px;right:8px;bottom:8px;background:rgba(160,20,20,.9);padding:8px 12px;border-radius:10px;font-size:12px;z-index:40;direction:rtl}
+/* وضع اللعب */
+.pl{display:none}
+body.mode-play .pl{display:block}
+body.mode-play #btns,body.mode-play #hint,body.mode-play #title,body.mode-play #phase,body.mode-play #info{display:none}
+body.mode-view #ctrl{display:none}
+#ctrl{position:fixed;inset:0;touch-action:none;z-index:5}
+#stickBase{display:none;position:fixed;width:112px;height:112px;border-radius:50%;background:rgba(255,255,255,.12);border:2px solid rgba(255,255,255,.4);pointer-events:none;z-index:6}
+#stickKnob{position:absolute;left:30px;top:30px;width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.5)}
+.rb{position:fixed;z-index:10;border-radius:50%;border:2px solid rgba(255,255,255,.55);background:rgba(0,0,0,.38);color:#fff;font-family:inherit;font-weight:700;touch-action:none;padding:0}
+.rb:active{background:rgba(255,255,255,.35)}
+#bJump{width:74px;height:74px;font-size:14px;right:calc(env(safe-area-inset-right,0px) + 26px);bottom:calc(env(safe-area-inset-bottom,0px) + 28px)}
+#bUse{width:64px;height:64px;font-size:13px;right:calc(env(safe-area-inset-right,0px) + 116px);bottom:calc(env(safe-area-inset-bottom,0px) + 86px);opacity:.45}
+#bUse.on{opacity:1;background:rgba(210,160,40,.75);border-color:#ffe08a}
+#bMenu{width:42px;height:42px;font-size:20px;top:calc(env(safe-area-inset-top,0px) + 8px);right:calc(env(safe-area-inset-right,0px) + 12px)}
+#cross{position:fixed;z-index:4;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:rgba(255,255,255,.75);box-shadow:0 0 3px #000;pointer-events:none}
+#prompt{position:fixed;z-index:7;left:50%;top:58%;transform:translateX(-50%);background:rgba(0,0,0,.55);padding:5px 14px;border-radius:12px;font-size:14px;pointer-events:none;display:none}
+#menu{display:none;position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.55);align-items:center;justify-content:center}
+#menu.open{display:flex}
+#menu .card{background:rgba(24,28,36,.96);border:1px solid rgba(255,255,255,.25);border-radius:16px;padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:8px;min-width:300px}
+#menu h3{grid-column:1/3;margin:0 0 4px;text-align:center;font-size:16px}
+#menu button{padding:10px 8px;border-radius:12px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.3);color:#fff;font-size:14px;font-family:inherit}
+#menu button:active{background:rgba(255,255,255,.3)}
+#menu .wide{grid-column:1/3}
+</style>
+</head>
+<body class="mode-play">
+<canvas id="c"></canvas>
+<div id="ctrl"></div>
+<div id="stickBase"><div id="stickKnob"></div></div>
+<div id="cross" class="pl"></div>
+<div id="prompt"></div>
+<button id="bJump" class="rb pl">قفز</button>
+<button id="bUse" class="rb pl">فتح</button>
+<button id="bMenu" class="rb pl">☰</button>
+<div id="hud">
+  <div><div id="title">قرية العبيدية</div><div id="phase">المرحلة 5 — عارض التضاريس</div><div id="fps"></div><div id="info"></div></div>
+  <div id="btns"><button id="p">العودة للعب</button><button id="v">المنظر</button><button id="h">منزل</button><button id="c2">قطع الأسطح</button><button id="d">الأبواب القريبة</button><button id="a">جولة تلقائية</button><button id="q">الجودة</button></div>
+</div>
+<div id="hint">اسحب للدوران · إصبعان للتقريب · «منزل» ثم «قطع الأسطح» لرؤية الغرف</div>
+<div id="menu"><div class="card">
+  <h3>قرية العبيدية</h3>
+  <button id="mResume" class="wide">متابعة</button>
+  <button id="mRespawn">العودة لبداية القرية</button><button id="mQuality">الجودة</button>
+  <button id="mFps">عدّاد FPS</button><button id="mView">وضع المعاينة</button>
+</div></div>
+<div id="loading">جارٍ بناء القرية…</div>
+<div id="err"></div>
+<script>
+// قرية العبيدية — إعدادات عامة
+const CFG = {
+  CHUNK: 16,          // عرض القطعة بالمكعبات
+  CHUNK_H: 64,        // ارتفاع العالم بالمكعبات
+  SEA: 14,            // مستوى أرض القرية الأساسي (G)
+  WORLD_CHUNKS: 16,   // العالم 16×16 قطعة = 256×256 مكعبًا
+  SAVE_KEY: 'obd_v1',
+  QUALITY: {
+    low:  { name: 'منخفضة', cap: 540,  fog: 70,  ao: false },
+    mid:  { name: 'متوسطة', cap: 720,  fog: 110, ao: true },
+    high: { name: 'عالية',  cap: 1080, fog: 170, ao: true },
+  },
+};
+// أنواع المكعبات
+const B = {
+  AIR: 0, GRASS: 1, DIRT: 2, SAND: 3, STONE: 4, WALL: 5, ROOF: 6, WOOD: 7, LEAF: 8, FIELD: 9, PATH: 10,
+  DSAND: 11, GRAVEL: 12, SANDSTONE: 13, SOIL: 14, CROP: 15, CROP2: 16, DGRASS: 17, DSTONE: 18, MUD: 19,
+  DOOR: 20, RUG: 21, CUSHION: 22, BEDSPREAD: 23, CLAY: 24, SACK: 25,
+};
+const BLOCK_COLOR = [
+  null,
+  [.42, .58, .27], [.50, .36, .22], [.82, .72, .50], [.55, .53, .50],
+  [.83, .78, .66], [.62, .60, .56], [.45, .30, .17], [.20, .45, .16],
+  [.35, .62, .22], [.76, .64, .42],
+  [.72, .62, .43], [.60, .57, .52], [.72, .62, .46], [.46, .35, .23],
+  [.30, .58, .20], [.62, .70, .25], [.58, .58, .32], [.42, .40, .38],
+  [.70, .58, .42],
+  [.38, .24, .13], [.55, .17, .15], [.82, .50, .20], [.28, .38, .62], [.68, .38, .24], [.86, .80, .62],
+];
+
+// رياضيات المصفوفات (عمودية الترتيب كما في WebGL)
+const M4 = {
+  create() { const m = new Float32Array(16); m[0] = m[5] = m[10] = m[15] = 1; return m; },
+  perspective(o, fovy, aspect, near, far) {
+    const f = 1 / Math.tan(fovy / 2);
+    o.fill(0); o[0] = f / aspect; o[5] = f;
+    o[10] = (far + near) / (near - far); o[11] = -1; o[14] = 2 * far * near / (near - far);
+    return o;
+  },
+  lookAt(o, ex, ey, ez, cx, cy, cz, ux, uy, uz) {
+    let zx = ex - cx, zy = ey - cy, zz = ez - cz, l = Math.hypot(zx, zy, zz) || 1;
+    zx /= l; zy /= l; zz /= l;
+    let xx = uy * zz - uz * zy, xy = uz * zx - ux * zz, xz = ux * zy - uy * zx;
+    l = Math.hypot(xx, xy, xz) || 1; xx /= l; xy /= l; xz /= l;
+    const yx = zy * xz - zz * xy, yy = zz * xx - zx * xz, yz = zx * xy - zy * xx;
+    o[0] = xx; o[1] = yx; o[2] = zx; o[3] = 0;
+    o[4] = xy; o[5] = yy; o[6] = zy; o[7] = 0;
+    o[8] = xz; o[9] = yz; o[10] = zz; o[11] = 0;
+    o[12] = -(xx * ex + xy * ey + xz * ez);
+    o[13] = -(yx * ex + yy * ey + yz * ez);
+    o[14] = -(zx * ex + zy * ey + zz * ez);
+    o[15] = 1;
+    return o;
+  },
+  _t: new Float32Array(16),
+  multiply(o, a, b) {
+    const t = this._t;
+    for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) {
+      let s = 0; for (let k = 0; k < 4; k++) s += a[k * 4 + r] * b[c * 4 + k];
+      t[c * 4 + r] = s;
+    }
+    o.set(t); return o;
+  },
+};
+
+// بناء شبكة القطعة — المرحلة 6
+// 1) دمج الوجوه المتجاورة المتطابقة (Greedy meshing): مثلثات أقل بكثير.
+// 2) إضاءة محيطية (AO) لكل زاوية: ظلال ناعمة في الزوايا والأزقة (بدون ظلال حقيقية).
+// 3) صيغة الرأس 16 بايت: موقع float32×3 + لون uint8×4 (بدل 24 بايت).
+// 4) فهارس 16-بت حين يسمح عدد الرؤوس.
+const FACES = [
+  { n: [ 1, 0, 0], s: .82, c: [[1,0,1],[1,0,0],[1,1,0],[1,1,1]] },
+  { n: [-1, 0, 0], s: .82, c: [[0,0,0],[0,0,1],[0,1,1],[0,1,0]] },
+  { n: [ 0, 1, 0], s: 1.0, c: [[0,1,1],[1,1,1],[1,1,0],[0,1,0]] },
+  { n: [ 0,-1, 0], s: .50, c: [[0,0,0],[1,0,0],[1,0,1],[0,0,1]] },
+  { n: [ 0, 0, 1], s: .90, c: [[0,0,1],[1,0,1],[1,1,1],[0,1,1]] },
+  { n: [ 0, 0,-1], s: .70, c: [[1,0,0],[0,0,0],[0,1,0],[1,1,0]] },
+];
+const NORM = [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
+const FACE_SHADE = [0.82, 0.82, 1.0, 0.5, 0.9, 0.7];
+const AO_LIGHT = [0.5, 0.68, 0.84, 1.0];           // ao = 0 (الأغمق) .. 3 (مكشوف)
+const UV = [[2, 1], [0, 2], [0, 1]];                // محاور المستوى (u,v) لكل محور عمودي
+// اتجاه المثلثات: CCW من الخارج، لازم لـ CULL_FACE
+const FLIP = NORM.map((n, f) => {
+  const a = f >> 1, au = UV[a][0], av = UV[a][1];
+  const c = (u, v) => { const p = [0, 0, 0]; p[au] = u; p[av] = v; return p; };
+  const c0 = c(0, 0), c1 = c(1, 0), c2 = c(1, 1);
+  const e1 = [c1[0]-c0[0], c1[1]-c0[1], c1[2]-c0[2]], e2 = [c2[0]-c0[0], c2[1]-c0[1], c2[2]-c0[2]];
+  const cr = [e1[1]*e2[2]-e1[2]*e2[1], e1[2]*e2[0]-e1[0]*e2[2], e1[0]*e2[1]-e1[1]*e2[0]];
+  return (cr[0]*n[0] + cr[1]*n[1] + cr[2]*n[2]) < 0;
+});
+function hash3(x, y, z) {
+  let h = (x * 374761393 + y * 668265263 + z * 2147483647) | 0;
+  h = ((h ^ (h >>> 13)) * 1274126177) | 0;
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;
+}
+
+// ao=true: إضاءة محيطية. يعيد {buf, nv, idx, count, itype, maxY}
+function meshChunk(world, cx, cz, ao = true) {
+  const S = CFG.CHUNK, sx = world.sx, x0 = cx * S, z0 = cz * S;
+  let H = world.sy;
+  if (world.final) {   // لا توجد مكعبات صلبة فوق أعلى عمود في القطعة
+    let top = -1;
+    for (let z = 0; z < S; z++) for (let x = 0; x < S; x++) { const t = world.colTop[(z0 + z) * sx + x0 + x]; if (t > top) top = t; }
+    H = Math.max(1, top + 1);
+  }
+  const dims = [S, H, S], base = [x0, 0, z0];
+  const mask = new Int32Array(S * Math.max(S, H));
+  const vtx = [], idx = [], P = [0, 0, 0];
+  let nv = 0, maxY = 0;
+  for (let f = 0; f < 6; f++) {
+    const a = f >> 1, sg = (f & 1) ? -1 : 1, au = UV[a][0], av = UV[a][1], n = NORM[f];
+    const Du = dims[au], Dv = dims[av], Dc = dims[a];
+    for (let c = 0; c < Dc; c++) {
+      // قناع الوجوه المكشوفة في هذه الشريحة
+      let any = false;
+      for (let iv = 0; iv < Dv; iv++) for (let iu = 0; iu < Du; iu++) {
+        const L = [0, 0, 0]; L[a] = c; L[au] = iu; L[av] = iv;
+        const gx = base[0] + L[0], gy = L[1], gz = base[2] + L[2];
+        const b = world.get(gx, gy, gz);
+        let key = -1;
+        if (b && !world.get(gx + n[0], gy + n[1], gz + n[2])) {
+          let code = 255;                                   // 3 في كل زاوية = مكشوف
+          if (ao) {
+            const ox = gx + n[0], oy = gy + n[1], oz = gz + n[2];
+            const sol = (du, dv) => { P[0] = ox; P[1] = oy; P[2] = oz; P[au] += du; P[av] += dv; return world.get(P[0], P[1], P[2]) ? 1 : 0; };
+            code = 0;
+            for (let k = 0; k < 4; k++) {
+              const du = (k === 1 || k === 2) ? 1 : -1, dv = k >= 2 ? 1 : -1;
+              const s1 = sol(du, 0), s2 = sol(0, dv), cc = sol(du, dv);
+              const v = (s1 && s2) ? 0 : 3 - (s1 + s2 + cc);
+              code |= v << (2 * k);
+            }
+          }
+          const q = Math.floor(hash3(gx >> 3, 0, gz >> 3) * 4);   // تدرّج لوني خفيف على مساحات 8×8 (يسمح بالدمج)
+          key = ((b * 4 + q) << 8) | code;
+          any = true;
+        }
+        mask[iv * Du + iu] = key;
+      }
+      if (!any) continue;
+      // دمج مستطيلات متطابقة في الشريحة
+      for (let iv = 0; iv < Dv; iv++) for (let iu = 0; iu < Du; ) {
+        const k = mask[iv * Du + iu];
+        if (k < 0) { iu++; continue; }
+        let w = 1; while (iu + w < Du && mask[iv * Du + iu + w] === k) w++;
+        let h = 1;
+        grow: while (iv + h < Dv) { for (let t = 0; t < w; t++) if (mask[(iv + h) * Du + iu + t] !== k) break grow; h++; }
+        for (let dv = 0; dv < h; dv++) for (let du = 0; du < w; du++) mask[(iv + dv) * Du + iu + du] = -1;
+        const kk = k >> 8, bid = kk >> 2, jq = kk & 3, code = k & 255;
+        const col = BLOCK_COLOR[bid], shade = FACE_SHADE[f] * (1 + (jq - 1.5) * 0.035);
+        const plane = c + (sg > 0 ? 1 : 0);
+        const cs = [[iu, iv], [iu + w, iv], [iu + w, iv + h], [iu, iv + h]];
+        for (let i = 0; i < 4; i++) {
+          const L = [0, 0, 0]; L[a] = plane; L[au] = cs[i][0]; L[av] = cs[i][1];
+          const X = base[0] + L[0], Y = L[1], Z = base[2] + L[2];
+          const lum = shade * AO_LIGHT[(code >> (2 * i)) & 3];
+          vtx.push(X, Y, Z, col[0] * lum, col[1] * lum, col[2] * lum);
+          if (Y > maxY) maxY = Y;
+        }
+        if (FLIP[f]) idx.push(nv, nv + 2, nv + 1, nv, nv + 3, nv + 2);
+        else idx.push(nv, nv + 1, nv + 2, nv, nv + 2, nv + 3);
+        nv += 4;
+        iu += w;
+      }
+    }
+  }
+  // تعبئة الذاكرة: 16 بايت للرأس
+  const buf = new ArrayBuffer(nv * 16), F = new Float32Array(buf), U = new Uint8Array(buf);
+  for (let i = 0; i < nv; i++) {
+    const o = i * 6, fo = i * 4, bo = i * 16;
+    F[fo] = vtx[o]; F[fo + 1] = vtx[o + 1]; F[fo + 2] = vtx[o + 2];
+    U[bo + 12] = Math.min(255, Math.round(vtx[o + 3] * 255));
+    U[bo + 13] = Math.min(255, Math.round(vtx[o + 4] * 255));
+    U[bo + 14] = Math.min(255, Math.round(vtx[o + 5] * 255));
+    U[bo + 15] = 255;
+  }
+  const small = nv < 65536;
+  return { buf, nv, idx: small ? new Uint16Array(idx) : new Uint32Array(idx), count: idx.length, itype: small ? 'u16' : 'u32', maxY };
+}
+
+// تخزين العالم: مصفوفة مكعبات، العمود (x,z) متصل في الذاكرة على محور y
+class World {
+  constructor(cxN, czN) {
+    this.cxN = cxN; this.czN = czN;
+    this.sx = cxN * CFG.CHUNK; this.sz = czN * CFG.CHUNK; this.sy = CFG.CHUNK_H;
+    this.data = new Uint8Array(this.sx * this.sy * this.sz);
+    this.colBase = new Uint8Array(this.sx * this.sz);          // عدد المكعبات الصلبة المتصلة من القاع
+    this.colTop = new Int16Array(this.sx * this.sz).fill(-1);  // أعلى مكعب غير فارغ
+    this.final = false;
+  }
+  idx(x, y, z) { return (z * this.sx + x) * this.sy + y; }
+  inside(x, y, z) { return x >= 0 && z >= 0 && y >= 0 && x < this.sx && z < this.sz && y < this.sy; }
+  get(x, y, z) {
+    if (y < 0) return 1;                                  // قاع العالم صلب
+    if (y >= this.sy) return 0;
+    if (x < 0 || z < 0 || x >= this.sx || z >= this.sz) return 1;   // حدود العالم صلبة: لا نرسم وجوه الأطراف
+    return this.data[this.idx(x, y, z)];
+  }
+  set(x, y, z, b) { if (this.inside(x, y, z)) { this.data[this.idx(x, y, z)] = b; this.final = false; } }
+  fillBox(x0, y0, z0, x1, y1, z1, b) {
+    for (let y = y0; y <= y1; y++) for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) this.set(x, y, z, b);
+  }
+  // إعادة حساب عمود واحد بدون إلغاء حالة التسريع (للأبواب)
+  recalcColumn(x, z) {
+    const o = (z * this.sx + x) * this.sy; let base = 0, top = -1, solid = true;
+    for (let y = 0; y < this.sy; y++) { if (this.data[o + y]) { top = y; if (solid) base = y + 1; } else solid = false; }
+    this.colBase[z * this.sx + x] = base; this.colTop[z * this.sx + x] = top;
+  }
+  // يحسب أعمدة التسريع للمُشبِّك؛ يُستدعى بعد أي تعديل كبير على العالم
+  finalize() {
+    const { sx, sz, sy, data } = this;
+    for (let z = 0; z < sz; z++) for (let x = 0; x < sx; x++) {
+      const o = (z * sx + x) * sy; let base = 0, top = -1, solid = true;
+      for (let y = 0; y < sy; y++) {
+        if (data[o + y]) { top = y; if (solid) base = y + 1; } else solid = false;
+      }
+      this.colBase[z * sx + x] = base; this.colTop[z * sx + x] = top;
+    }
+    this.final = true;
+  }
+}
+
+// عالم المرحلة 1 التجريبي (احتياطي، لم يعد مستخدمًا)
+function buildTestWorld() {
+  const w = new World(6, 6), G = CFG.SEA;
+  for (let z = 0; z < w.sz; z++) for (let x = 0; x < w.sx; x++)
+    for (let y = 0; y <= G; y++) w.set(x, y, z, y === G ? B.GRASS : (y > G - 3 ? B.DIRT : B.STONE));
+  w.finalize();
+  return w;
+}
+
+// مولّد التضاريس — المرحلة 2
+// الاتجاهات: الشمال = -z (أعلى الصورة)، الشرق = +x. الأحداثيات مقدَّرة من لقطة القمر الصناعي ومرجع Minecraft.
+const TERRAIN = {
+  village: { cx: 128, cz: 160, rx: 62, rz: 50, blend: 14 },   // منصة القرية المسطحة (للمرحلة 3)
+  wadiZ: 52,                                                    // مجرى الوادي الجاف شمال القرية
+  // مزارع: [x0, z0, x1, z1, النوع, سور حجري]
+  fields: [
+    [148, 88, 186, 111, 'soil', true],
+    [116, 91, 142, 108, 'soil', false],
+    [130, 205, 191, 230, 'crop', true],
+    [60, 207, 92, 221, 'crop', true],
+    [64, 224, 96, 236, 'crop', false],
+    [196, 150, 224, 175, 'crop', true],
+    [196, 180, 224, 196, 'soil', false],
+  ],
+  circles: [
+    { x: 116, z: 221, r: 8, kind: 'threshing' },   // بيدر دائري
+    { x: 100, z: 243, r: 5, kind: 'pit' },         // حفرة بسور حجري
+    { x: 114, z: 129, r: 4, kind: 'well' },        // بئر/حظيرة دائرية
+  ],
+  mounds: [ { x: 82, z: 158, r: 9, h: 4 }, { x: 205, z: 215, r: 6, h: 3 }, { x: 92, z: 200, r: 6, h: 3 } ],
+};
+
+function rnd2(ix, iz, seed) {
+  let h = Math.imul(ix, 374761393) ^ Math.imul(iz, 668265263) ^ Math.imul(seed, 1442695041);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+function vnoise(x, z, seed) {
+  const xi = Math.floor(x), zi = Math.floor(z), xf = x - xi, zf = z - zi;
+  const u = xf * xf * (3 - 2 * xf), v = zf * zf * (3 - 2 * zf);
+  const a = rnd2(xi, zi, seed), b = rnd2(xi + 1, zi, seed), c = rnd2(xi, zi + 1, seed), d = rnd2(xi + 1, zi + 1, seed);
+  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+}
+function fbm(x, z, seed) {   // 0..1
+  let s = 0, a = .5, f = 1;
+  for (let i = 0; i < 4; i++) { s += a * vnoise(x * f, z * f, seed + i * 17); f *= 2; a *= .5; }
+  return s / .9375;
+}
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const smooth01 = t => t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
+
+function generateTerrain() {
+  const NC = CFG.WORLD_CHUNKS, w = new World(NC, NC), N = w.sx, G = CFG.SEA, T = TERRAIN, V = T.village;
+  const n = N * N, H = new Int16Array(n), S = new Uint8Array(n), R = new Uint8Array(n), WD = new Uint8Array(n);
+  const wadiC = x => T.wadiZ + 5 * Math.sin(x * .045) + (fbm(x * .02, 9, 31) - .5) * 8;
+  const wadiW = x => 8 + (fbm(x * .05, 3, 7) - .5) * 6;
+
+  // 1) الارتفاعات: جبال محيطة (الشمال الأعلى) + تموّج خفيف + منصة القرية + الوادي
+  for (let z = 0; z < N; z++) for (let x = 0; x < N; x++) {
+    const i = z * N + x, n1 = fbm(x * .035, z * .035, 11);
+    const jx = (fbm(x * .02 + 40, z * .02, 61) - .5) * 40, jz = (fbm(x * .02, z * .02 + 40, 73) - .5) * 40;  // حواف غير مستقيمة
+    const hill = Math.max(
+      smooth01(1 - (z + jz) / 46) * (22 + 18 * n1),
+      smooth01(1 - (N - 1 - z + jz) / 40) * (6 + 10 * n1),
+      smooth01(1 - (x + jx) / 50) * (8 + 12 * n1),
+      smooth01(1 - (N - 1 - x + jx) / 50) * (8 + 12 * n1));
+    let val = hill + (fbm(x * .06, z * .06, 5) - .5) * 3;
+    const e = Math.hypot((x - V.cx) / V.rx, (z - V.cz) / V.rz);
+    val *= smooth01((e - 1) / (V.blend / ((V.rx + V.rz) / 2)));
+    const dw = Math.abs(z - wadiC(x)), hw = wadiW(x);
+    if (dw < hw) { val -= 2 * (1 - (dw / hw) * (dw / hw)); WD[i] = 1; }
+    let h;
+    if (val > 3) { h = 3 + 2 * Math.floor((val - 3) / 2); R[i] = 1; }   // مدرجات بخطوة مكعبين
+    else h = Math.round(val);
+    H[i] = G + h;
+  }
+
+  // 2) تلال صغيرة صخرية
+  for (const m of T.mounds) for (let z = (m.z - m.r) | 0; z <= m.z + m.r; z++) for (let x = (m.x - m.r) | 0; x <= m.x + m.r; x++) {
+    const d = Math.hypot(x - m.x, z - m.z); if (d >= m.r) continue;
+    const i = z * N + x, add = Math.round(m.h * (1 - (d / m.r) * (d / m.r)));
+    if (add > 0) { H[i] += add; R[i] = 1; S[i] = (hash3(x, 0, z) < .5) ? B.GRAVEL : B.DSTONE; }
+  }
+
+  // 3) دوائر: بيدر، حفرة بسور، بئر
+  for (const c of T.circles) for (let z = (c.z - c.r) | 0; z <= c.z + c.r; z++) for (let x = (c.x - c.r) | 0; x <= c.x + c.r; x++) {
+    const d = Math.hypot(x - c.x, z - c.z); if (d > c.r) continue;
+    const i = z * N + x;
+    if (c.kind === 'threshing') { H[i] = G; R[i] = 0; S[i] = B.SOIL; }
+    else {
+      const inner = c.kind === 'pit' ? .55 : .45;
+      if (d < c.r * inner) { H[i] = G - (c.kind === 'pit' ? 2 : 3); R[i] = 0; S[i] = c.kind === 'pit' ? B.GRAVEL : B.DSTONE; }
+      else { H[i] = G + 1; R[i] = 1; S[i] = B.STONE; }
+    }
+  }
+
+  // 4) مزارع مسطحة بأسوار حجرية منخفضة وفتحات
+  T.fields.forEach((f, fi) => {
+    const [x0, z0, x1, z1, type, wall] = f;
+    for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) {
+      const i = z * N + x; H[i] = G; R[i] = 0; WD[i] = 0;
+      if (type === 'soil') S[i] = B.SOIL;
+      else S[i] = ((z - z0) % 3 === 0) ? B.SOIL : ((fi % 2) ? B.CROP2 : B.CROP);
+      if (wall && (x === x0 || x === x1 || z === z0 || z === z1) && hash3(x, 5, z) > .1) { H[i] = G + 1; R[i] = 1; S[i] = B.STONE; }
+    }
+  });
+
+  // 5) تعبئة الأعمدة
+  for (let z = 0; z < N; z++) for (let x = 0; x < N; x++) {
+    const i = z * N + x, h = Math.max(1, Math.min(w.sy - 1, H[i])), o = (z * N + x) * w.sy;
+    const rocky = R[i], hs = hash3(x, 0, z);
+    for (let y = 0; y <= h; y++) {
+      let b;
+      if (y === h) {
+        if (S[i]) b = S[i];
+        else if (rocky) b = hs < .55 ? B.DSAND : hs < .82 ? B.GRAVEL : B.DGRASS;
+        else if (WD[i]) b = hs < .25 ? B.GRAVEL : hs < .5 ? B.DSAND : B.SAND;
+        else b = hs < .10 ? B.DSAND : hs < .14 ? B.DGRASS : B.SAND;
+      } else if (rocky) {
+        const q = hash3(x, y, z); b = q < .22 ? B.SANDSTONE : (y % 3 === 0 ? B.DSTONE : B.STONE);
+      } else if (y >= h - 2) b = (S[i] === B.SOIL || S[i] === B.CROP || S[i] === B.CROP2) ? B.SOIL : B.SAND;
+      else b = B.STONE;
+      w.data[o + y] = b;
+    }
+  }
+
+  // 6) أشجار (سنط) وشجيرات خارج منصة القرية — داخل القرية تُوزَّع في المرحلة 3
+  const rng = mulberry32(2025), occ = new Uint8Array((N >> 2) * (N >> 2)), trees = [];
+  for (let a = 0; a < 3200; a++) {
+    const x = 3 + ((rng() * (N - 6)) | 0), z = 3 + ((rng() * (N - 6)) | 0), i = z * N + x;
+    if (S[i] || R[i] || H[i] > G + 3 || H[i] < G - 4) continue;
+    const e = Math.hypot((x - V.cx) / V.rx, (z - V.cz) / V.rz); if (e < .95) continue;
+    const near = Math.abs(z - wadiC(x)) < wadiW(x) + 16;
+    if (rng() > (near ? .6 : .2)) continue;
+    const hh = H[i]; if (Math.abs(H[i + 1] - hh) > 1 || Math.abs(H[i - 1] - hh) > 1 || Math.abs(H[i + N] - hh) > 1 || Math.abs(H[i - N] - hh) > 1) continue;
+    const oc = (z >> 2) * (N >> 2) + (x >> 2); if (occ[oc]) continue; occ[oc] = 1;
+    if (rng() < .3) { w.set(x, hh + 1, z, B.LEAF); continue; }          // شجيرة
+    const th = 2 + ((rng() * 2) | 0);
+    for (let k = 1; k <= th; k++) w.set(x, hh + k, z, B.WOOD);
+    const cy = hh + th + 1;
+    for (let dz = -2; dz <= 2; dz++) for (let dx = -2; dx <= 2; dx++)
+      if (!(Math.abs(dx) === 2 && Math.abs(dz) === 2) && !w.get(x + dx, cy, z + dz)) w.set(x + dx, cy, z + dz, B.LEAF);
+    for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) w.set(x + dx, cy + 1, z + dz, B.LEAF);
+    trees.push([x, z]);
+  }
+  w.finalize();
+  w.info = { trees: trees.length };
+  return w;
+}
+
+// داخل المنازل — المرحلة 4: غرف، أبواب، نوافذ، أثاث، سلالم
+// ارتفاع الطابق الأرضي 4 مكعبات (y=1..4 فوق الأرض G)، بلاطة الطابق العلوي عند y=5، الطابق العلوي y=6..8.
+function shuffle(a, rng) { for (let i = a.length - 1; i > 0; i--) { const j = (rng() * (i + 1)) | 0; const t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+const k2 = (x, z) => x * 1024 + z;
+
+// يخطط السلم ومنطقة المدخل. يخفض المنزل لطابق واحد إن لم يتسع السلم.
+function planInterior(h, rng) {
+  const x0 = h.x + 1, x1 = h.x + h.w - 2, z0 = h.z + 1, z1 = h.z + h.d - 2, d = h.door;
+  const ex = d.x + (h.face === 'e' ? -1 : h.face === 'w' ? 1 : 0), ez = d.z + (h.face === 's' ? -1 : h.face === 'n' ? 1 : 0);
+  const P = { x0, x1, z0, z1, entry: { x: ex, z: ez }, entryZone: new Set(), reserved: new Set(), keep: new Set(), upKeep: new Set(), stairs: null };
+  for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) P.entryZone.add(k2(ex + dx, ez + dz));
+  if (h.floors === 2) {
+    const iw = x1 - x0 + 1, id = z1 - z0 + 1, c = [];
+    const run = (sx, sz, dx, dz) => { const cells = []; for (let k = 0; k < 6; k++) cells.push({ x: sx + dx * k, z: sz + dz * k }); return { cells, dx, dz }; };
+    if (iw >= 6) for (const zz of [z0, z1]) { c.push(run(x0 + 5, zz, -1, 0)); c.push(run(x1 - 5, zz, 1, 0)); }
+    if (id >= 6) for (const xx of [x0, x1]) { c.push(run(xx, z0 + 5, 0, -1)); c.push(run(xx, z1 - 5, 0, 1)); }
+    shuffle(c, rng);
+    const ok = c.find(s => !s.cells.some(q => P.entryZone.has(k2(q.x, q.z))));
+    if (!ok) h.floors = 1;
+    else {
+      P.stairs = ok;
+      for (const q of ok.cells) P.reserved.add(k2(q.x, q.z));
+      const px = ok.dz !== 0 ? 1 : 0, pz = ok.dx !== 0 ? 1 : 0, s0 = ok.cells[0];
+      const add = (set, x, z) => { if (x >= x0 && x <= x1 && z >= z0 && z <= z1) set.add(k2(x, z)); };
+      add(P.keep, s0.x - ok.dx, s0.z - ok.dz); add(P.keep, s0.x + px, s0.z + pz); add(P.keep, s0.x - px, s0.z - pz);
+      for (let k = 1; k <= 5; k++) { add(P.upKeep, ok.cells[k].x + px, ok.cells[k].z + pz); add(P.upKeep, ok.cells[k].x - px, ok.cells[k].z - pz); }
+    }
+  }
+  return P;
+}
+
+// تقسيم الطابق الأرضي إلى غرف بجدران وفتحات أبواب (BSP)
+function partitionRooms(P, rng) {
+  const rooms = [], walls = [], doorways = [], doorAdj = new Set();
+  const bad = (x, z) => P.entryZone.has(k2(x, z)) || P.reserved.has(k2(x, z)) || P.keep.has(k2(x, z)) || doorAdj.has(k2(x, z));
+  const rec = (r, depth) => {
+    const w = r.x1 - r.x0 + 1, d = r.z1 - r.z0 + 1, canX = w >= 7, canZ = d >= 7;
+    if (depth >= 2 || (!canX && !canZ) || (depth > 0 && (rng() < .2 || w * d < 40))) { rooms.push(r); return; }
+    const ax = canX && canZ ? (w > d + 1 ? 'x' : d > w + 1 ? 'z' : (rng() < .5 ? 'x' : 'z')) : (canX ? 'x' : 'z');
+    const lo = ax === 'x' ? r.x0 + 3 : r.z0 + 3, hi = ax === 'x' ? r.x1 - 3 : r.z1 - 3, ps = [];
+    for (let p = lo; p <= hi; p++) ps.push(p);
+    shuffle(ps, rng);
+    const from = ax === 'x' ? r.z0 : r.x0, to = ax === 'x' ? r.z1 : r.x1; let pick = null;
+    for (const p of ps) {
+      let ok = true; const cand = [];
+      for (let q = from; q <= to; q++) {
+        const cx = ax === 'x' ? p : q, cz = ax === 'x' ? q : p;
+        if (bad(cx, cz)) { ok = false; break; }
+        const sa = ax === 'x' ? [cx - 1, cz] : [cx, cz - 1], sb = ax === 'x' ? [cx + 1, cz] : [cx, cz + 1];
+        if (!bad(sa[0], sa[1]) && !bad(sb[0], sb[1])) cand.push(q);
+      }
+      if (ok && cand.length) { pick = { p, q: cand[(rng() * cand.length) | 0] }; break; }
+    }
+    if (!pick) { rooms.push(r); return; }
+    const dw = ax === 'x' ? { x: pick.p, z: pick.q, ax } : { x: pick.q, z: pick.p, ax };
+    walls.push({ ax, p: pick.p, r }); doorways.push(dw);
+    doorAdj.add(k2(dw.x, dw.z));
+    if (ax === 'x') { doorAdj.add(k2(dw.x - 1, dw.z)); doorAdj.add(k2(dw.x + 1, dw.z)); }
+    else { doorAdj.add(k2(dw.x, dw.z - 1)); doorAdj.add(k2(dw.x, dw.z + 1)); }
+    if (ax === 'x') { rec({ x0: r.x0, x1: pick.p - 1, z0: r.z0, z1: r.z1 }, depth + 1); rec({ x0: pick.p + 1, x1: r.x1, z0: r.z0, z1: r.z1 }, depth + 1); }
+    else { rec({ x0: r.x0, x1: r.x1, z0: r.z0, z1: pick.p - 1 }, depth + 1); rec({ x0: r.x0, x1: r.x1, z0: pick.p + 1, z1: r.z1 }, depth + 1); }
+  };
+  rec({ x0: P.x0, x1: P.x1, z0: P.z0, z1: P.z1 }, 0);
+  return { rooms, walls, doorways, doorAdj };
+}
+
+function perimeterCells(r, blocked, used) {
+  const out = [];
+  for (let z = r.z0; z <= r.z1; z++) for (let x = r.x0; x <= r.x1; x++) {
+    if (!(x === r.x0 || x === r.x1 || z === r.z0 || z === r.z1)) continue;
+    const k = k2(x, z); if (!blocked.has(k) && !used.has(k)) out.push({ x, z });
+  }
+  return out;
+}
+
+function placeBed(w, r, fy, blocked, used, rng) {
+  const per = shuffle(perimeterCells(r, blocked, used), rng), has = new Set(per.map(c => k2(c.x, c.z)));
+  for (const c of per) for (const [dx, dz] of [[1, 0], [0, 1]]) {
+    const x2 = c.x + dx, z2 = c.z + dz;
+    if (!has.has(k2(x2, z2))) continue;
+    w.set(c.x, fy, c.z, B.WOOD); w.set(x2, fy, z2, B.BEDSPREAD); used.add(k2(c.x, c.z)); used.add(k2(x2, z2)); return true;
+  }
+  return false;
+}
+
+function furnishRoom(w, r, type, fy, blocked, used, rng) {
+  const rw = r.x1 - r.x0 + 1, rd = r.z1 - r.z0 + 1, G = CFG.SEA;
+  const rug = () => { if (rw >= 5 && rd >= 5) for (let z = r.z0 + 1; z < r.z1; z++) for (let x = r.x0 + 1; x < r.x1; x++) if (w.get(x, fy - 1, z)) w.set(x, fy - 1, z, B.RUG); };
+  const take = n => shuffle(perimeterCells(r, blocked, used), rng).slice(0, n);
+  const put = (c, ...bs) => { bs.forEach((b, i) => w.set(c.x, fy + i, c.z, b)); used.add(k2(c.x, c.z)); };
+  if (type === 'majlis') {            // مجلس: سجاد وفرش على الجانبين الطويلين
+    rug();
+    const alongX = rw >= rd;
+    for (const c of perimeterCells(r, blocked, used)) {
+      if (alongX ? (c.z === r.z0 || c.z === r.z1) : (c.x === r.x0 || c.x === r.x1)) put(c, B.CUSHION);
+    }
+  } else if (type === 'bedroom' || type === 'upper') {   // سرير وصندوق
+    if (type === 'upper') rug();
+    placeBed(w, r, fy, blocked, used, rng);
+    if (type === 'upper' && rw * rd >= 28) placeBed(w, r, fy, blocked, used, rng);
+    for (const c of take(1)) put(c, B.WOOD);
+  } else if (type === 'kitchen') {    // مطبخ: تنور، جرار، خزانة
+    const corners = [[r.x0, r.z0], [r.x1, r.z0], [r.x0, r.z1], [r.x1, r.z1]].filter(q => !blocked.has(k2(q[0], q[1])) && !used.has(k2(q[0], q[1])));
+    if (corners.length) { const q = corners[(rng() * corners.length) | 0]; put({ x: q[0], z: q[1] }, B.DSTONE, B.DSTONE); }
+    const t = take(4);
+    if (t[0]) put(t[0], B.CLAY); if (t[1]) put(t[1], B.CLAY); if (t[2]) put(t[2], B.WOOD, B.WOOD);
+  } else if (type === 'storage') {    // مخزن: أكياس وصناديق
+    const t = take(6);
+    t.forEach((c, i) => { if (i < 3) put(c, B.SACK, ...(i === 0 ? [B.SACK] : [])); else put(c, B.WOOD, ...(i === 3 ? [B.WOOD] : [])); });
+  }
+}
+
+function addWindows(w, h, rng, wy, forbid) {
+  const G = CFG.SEA, d = h.door, x1 = h.x + h.w - 1, z1 = h.z + h.d - 1;
+  const sides = [
+    { cells: Array.from({ length: h.w - 2 }, (_, i) => ({ x: h.x + 1 + i, z: h.z, ix: h.x + 1 + i, iz: h.z + 1 })), horiz: true },
+    { cells: Array.from({ length: h.w - 2 }, (_, i) => ({ x: h.x + 1 + i, z: z1, ix: h.x + 1 + i, iz: z1 - 1 })), horiz: true },
+    { cells: Array.from({ length: h.d - 2 }, (_, i) => ({ x: h.x, z: h.z + 1 + i, ix: h.x + 1, iz: h.z + 1 + i })), horiz: false },
+    { cells: Array.from({ length: h.d - 2 }, (_, i) => ({ x: x1, z: h.z + 1 + i, ix: x1 - 1, iz: h.z + 1 + i })), horiz: false },
+  ];
+  let n = 0;
+  for (const s of sides) {
+    let skip = 1 + ((rng() * 2) | 0);
+    for (const c of s.cells) {
+      if (skip > 0) { skip--; continue; }
+      if (Math.abs(c.x - d.x) <= 1 && Math.abs(c.z - d.z) <= 1) continue;
+      if (forbid.has(k2(c.ix, c.iz))) continue;
+      w.set(c.x, G + wy, c.z, B.AIR); n++; skip = 2 + ((rng() * 2) | 0);
+    }
+  }
+  return n;
+}
+
+function buildInterior(w, h, rng) {
+  const G = CFG.SEA, P = h.plan, part = partitionRooms(P, rng), wallCells = new Set();
+  // 1) جدران التقسيم وفتحات الأبواب الداخلية
+  for (const wl of part.walls) {
+    const from = wl.ax === 'x' ? wl.r.z0 : wl.r.x0, to = wl.ax === 'x' ? wl.r.z1 : wl.r.x1;
+    for (let q = from; q <= to; q++) {
+      const x = wl.ax === 'x' ? wl.p : q, z = wl.ax === 'x' ? q : wl.p;
+      wallCells.add(k2(x, z));
+      for (let y = 1; y <= 4; y++) w.set(x, G + y, z, B.WALL);
+    }
+  }
+  for (const d of part.doorways) { w.set(d.x, G + 1, d.z, B.AIR); w.set(d.x, G + 2, d.z, B.AIR); }
+  // 2) السلم: 5 درجات حجرية، وفتحة في بلاطة الطابق العلوي فوق الدرجات 2..4
+  if (h.floors === 2 && P.stairs) {
+    for (let i = 1; i <= 5; i++) { const c = P.stairs.cells[i]; for (let y = 1; y <= i; y++) w.set(c.x, G + y, c.z, B.STONE); }
+    for (let i = 2; i <= 4; i++) { const c = P.stairs.cells[i]; w.set(c.x, G + 5, c.z, B.AIR); }
+  }
+  // 3) الباب الرئيسي مغلق (يُفتح بـ setDoor)
+  w.set(h.door.x, G + 1, h.door.z, B.DOOR); w.set(h.door.x, G + 2, h.door.z, B.DOOR); h.doorOpen = false;
+  // 4) الأثاث: المجلس عند المدخل ثم بقية الغرف
+  const blocked = new Set([...P.entryZone, ...P.reserved, ...P.keep, ...part.doorAdj]), used = new Set();
+  const rooms = part.rooms.map(r => ({ x0: r.x0, x1: r.x1, z0: r.z0, z1: r.z1, type: '' }));
+  let er = rooms.find(r => P.entry.x >= r.x0 && P.entry.x <= r.x1 && P.entry.z >= r.z0 && P.entry.z <= r.z1) || rooms[0];
+  er.type = 'majlis';
+  const others = rooms.filter(r => r !== er).sort((a, b) => (b.x1 - b.x0 + 1) * (b.z1 - b.z0 + 1) - (a.x1 - a.x0 + 1) * (a.z1 - a.z0 + 1));
+  const seq = ['bedroom', 'kitchen', 'storage', 'bedroom'];
+  others.forEach((r, i) => { r.type = seq[i % seq.length]; });
+  for (const r of rooms) furnishRoom(w, r, r.type, G + 1, blocked, used, rng);
+  if (rooms.length === 1) { furnishRoom(w, er, 'bedroom', G + 1, blocked, used, rng); furnishRoom(w, er, 'kitchen', G + 1, blocked, used, rng); }
+  // 5) الطابق العلوي: غرفة مفتوحة بأسرّة وصندوق
+  let nWin = 0;
+  const wallInner = new Set([...wallCells, ...P.reserved, ...P.keep, ...part.doorAdj]);
+  nWin += addWindows(w, h, rng, 2, wallInner);
+  if (h.floors === 2) {
+    const up = { x0: P.x0, x1: P.x1, z0: P.z0, z1: P.z1 };
+    furnishRoom(w, up, 'upper', G + 6, new Set([...P.reserved, ...P.upKeep]), new Set(), rng);
+    rooms.push(Object.assign({ type: 'upper', floor: 2 }, up));
+    nWin += addWindows(w, h, rng, 7, new Set([...P.reserved]));
+  }
+  h.rooms = rooms; h.doorways = part.doorways; h.stairs = P.stairs; h.windows = nWin; h.plan = null;
+}
+
+// فتح/إغلاق الباب الرئيسي. يعيد قائمة القطع [cx,cz] التي تحتاج إعادة تشبيك
+function setDoor(w, h, open) {
+  const G = CFG.SEA, d = h.door, S = CFG.CHUNK, out = new Set();
+  for (let y = 1; y <= 2; y++) w.data[w.idx(d.x, G + y, d.z)] = open ? B.AIR : B.DOOR;
+  w.recalcColumn(d.x, d.z); h.doorOpen = open;
+  for (const [dx, dz] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) out.add(Math.floor((d.x + dx) / S) + ',' + Math.floor((d.z + dz) / S));
+  return [...out].map(s => s.split(',').map(Number));
+}
+
+// بناء القرية — المرحلة 3: أحياء ومنازل (هياكل خارجية) وطرق وأزقة وأسوار
+// المواقع مقدَّرة من لقطة القمر الصناعي ومرجع Minecraft. الشمال = -z، الشرق = +x.
+const VILLAGE = {
+  // أحياء المباني: مركز ونصفا قطر وعدد المنازل المستهدف
+  clusters: [
+    { id: 'A', cx: 94,  cz: 160, rx: 21, rz: 28, n: 22 },
+    { id: 'B', cx: 131, cz: 146, rx: 18, rz: 26, n: 24 },
+    { id: 'C', cx: 166, cz: 134, rx: 14, rz: 16, n: 14 },
+    { id: 'D', cx: 168, cz: 187, rx: 11, rz: 13, n: 16 },
+    { id: 'E', cx: 140, cz: 192, rx: 10, rz: 8,  n: 8 },
+  ],
+  // طرق ترابية: strict = تُرسم على أرض القرية المسطحة فقط
+  roads: [
+    { w: 3, strict: true, pts: [[70,140],[84,126],[108,116],[126,112],[150,114],[176,112],[186,128],[190,150],[188,176],[184,196],[170,203],[132,203],[126,198],[112,201],[88,198],[72,184],[68,160],[70,140]] },
+    { w: 3, strict: true, pts: [[112,136],[104,132],[100,122],[104,114]] },
+    { w: 3, strict: true, pts: [[112,136],[112,200]] },
+    { w: 3, strict: true, pts: [[151,116],[151,172]] },
+    { w: 3, strict: true, pts: [[112,172],[186,172]] },
+    { w: 3, strict: true, pts: [[128,172],[128,200]] },
+    { w: 3, strict: false, pts: [[151,114],[146,100],[145,60],[145,45]] },   // شمالًا نحو الوادي
+    { w: 3, strict: false, pts: [[127,200],[127,245]] },                      // جنوبًا بين المزارع
+    { w: 3, strict: false, pts: [[188,177],[232,177]] },                      // شرقًا بين المزارع
+    { w: 3, strict: false, pts: [[69,170],[48,170]] },                        // غربًا
+  ],
+  // أحواش بأسوار حجرية وبوابة
+  yards: [
+    { x0: 156, z0: 152, x1: 174, z1: 168, gate: 's' },
+    { x0: 115, z0: 176, x1: 125, z1: 186, gate: 'w' },
+  ],
+};
+
+function stampLine(mask, N, p, q, hw, v) {
+  const len = Math.hypot(q[0] - p[0], q[1] - p[1]), steps = Math.max(1, Math.ceil(len * 2)), r = Math.ceil(hw);
+  for (let s = 0; s <= steps; s++) {
+    const t = s / steps, px = p[0] + (q[0] - p[0]) * t, pz = p[1] + (q[1] - p[1]) * t;
+    for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) {
+      const x = Math.round(px) + dx, z = Math.round(pz) + dz;
+      if (x < 0 || z < 0 || x >= N || z >= N || Math.hypot(x - px, z - pz) > hw) continue;
+      if (!mask[z * N + x]) mask[z * N + x] = v;
+    }
+  }
+}
+
+// يسوّي المستطيل على مستوى الأرض G ويزيل ما فوقه (أشجار أو بقايا)
+function levelArea(w, x0, z0, x1, z1) {
+  const G = CFG.SEA;
+  for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) {
+    if (!w.inside(x, 0, z)) continue;
+    const o = (z * w.sx + x) * w.sy;
+    for (let y = G + 1; y < w.sy; y++) w.data[o + y] = 0;
+    for (let y = 0; y <= G; y++) if (!w.data[o + y]) w.data[o + y] = B.SAND;
+    w.data[o + G] = B.SAND;
+    w.colBase[z * w.sx + x] = G + 1; w.colTop[z * w.sx + x] = G;
+  }
+  w.final = false;
+}
+
+function plantTree(w, x, z, gy, rng) {
+  const th = 2 + ((rng() * 2) | 0);
+  for (let k = 1; k <= th; k++) w.set(x, gy + k, z, B.WOOD);
+  const cy = gy + th + 1;
+  for (let dz = -2; dz <= 2; dz++) for (let dx = -2; dx <= 2; dx++)
+    if (!(Math.abs(dx) === 2 && Math.abs(dz) === 2) && !w.get(x + dx, cy, z + dz)) w.set(x + dx, cy, z + dz, B.LEAF);
+  for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) w.set(x + dx, cy + 1, z + dz, B.LEAF);
+}
+
+// يرسم مكعب طريق على سطح الأرض (بدون تغيير الارتفاع)
+function paintPath(w, x, z, strict) {
+  if (!w.inside(x, 0, z)) return;
+  const G = CFG.SEA, c = z * w.sx + x, y = w.colBase[c] - 1;
+  if (strict ? y !== G : Math.abs(y - G) > 3) return;
+  const o = c * w.sy, cur = w.data[o + y];
+  if (cur === B.STONE || cur === B.DSTONE || cur === B.SANDSTONE || cur === B.SOIL || cur === B.CROP || cur === B.CROP2 || cur === B.DIRT) return;
+  w.data[o + y] = B.PATH;
+  for (let k = 1; k <= 7; k++) { const b = w.data[o + y + k]; if (b === B.LEAF || b === B.WOOD) w.data[o + y + k] = 0; }
+}
+
+function buildHouse(w, h, rng) {
+  const G = CFG.SEA, hh = 4, H = hh * h.floors, x1 = h.x + h.w - 1, z1 = h.z + h.d - 1;
+  const style = rng(), wallB = style < .22 ? B.MUD : B.WALL, baseB = style > .55 ? B.STONE : wallB;
+  const parapet = rng() < .85, box = rng() < .35;
+  for (let X = h.x; X <= x1; X++) for (let Z = h.z; Z <= z1; Z++) {
+    const edge = X === h.x || X === x1 || Z === h.z || Z === z1;
+    w.set(X, G, Z, edge ? B.STONE : B.DIRT);                         // أساس / أرضية ترابية
+    for (let y = 1; y <= H; y++) {
+      if (edge) w.set(X, G + y, Z, y === 1 ? baseB : wallB);
+      else if (h.floors === 2 && y === hh + 1) w.set(X, G + y, Z, B.ROOF);   // بلاطة الطابق العلوي
+    }
+    w.set(X, G + H + 1, Z, B.ROOF);                                   // سقف مسطح
+    if (edge && parapet) w.set(X, G + H + 2, Z, B.WALL);              // حاجز السطح
+  }
+  if (box && h.w >= 7 && h.d >= 7) w.fillBox(h.x + 1, G + H + 2, h.z + 1, h.x + 2, G + H + 3, h.z + 2, B.WALL);   // صندوق على السطح
+  const d = h.door;                                                    // فتحة الباب + عتب خشبي
+  w.set(d.x, G + 1, d.z, B.AIR); w.set(d.x, G + 2, d.z, B.AIR); w.set(d.x, G + 3, d.z, B.WOOD);
+}
+
+function buildYard(w, y, rng) {
+  const G = CFG.SEA, cx = (y.x0 + y.x1) >> 1, cz = (y.z0 + y.z1) >> 1;
+  for (let X = y.x0; X <= y.x1; X++) for (let Z = y.z0; Z <= y.z1; Z++) {
+    const edge = X === y.x0 || X === y.x1 || Z === y.z0 || Z === y.z1;
+    if (edge) { const b = hash3(X, 3, Z) < .25 ? B.DSTONE : B.STONE; w.set(X, G + 1, Z, b); w.set(X, G + 2, Z, b); }
+    else { const q = hash3(X, 9, Z); w.set(X, G, Z, q < .3 ? B.CROP : q < .4 ? B.DGRASS : B.SAND); }
+  }
+  const gx = y.gate === 'w' ? y.x0 : y.gate === 'e' ? y.x1 : cx, gz = y.gate === 'n' ? y.z0 : y.gate === 's' ? y.z1 : cz;
+  for (let k = 0; k < 2; k++) {
+    const px = y.gate === 'w' || y.gate === 'e' ? gx : gx + k, pz = y.gate === 'n' || y.gate === 's' ? gz : gz + k;
+    w.set(px, G + 1, pz, B.AIR); w.set(px, G + 2, pz, B.AIR); w.set(px, G, pz, B.PATH);
+  }
+  plantTree(w, cx + 1, cz - 1, G, rng);
+}
+
+function buildVillage(w) {
+  const N = w.sx, G = CFG.SEA, T = TERRAIN, rng = mulberry32(77);
+  const roadMask = new Uint8Array(N * N), obs = new Uint8Array(N * N), occH = new Uint8Array(N * N);
+  const stamp = (a, x0, z0, x1, z1) => { for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) if (x >= 0 && z >= 0 && x < N && z < N) a[z * N + x] = 1; };
+  const disc = (a, cx, cz, r) => { for (let z = Math.floor(cz - r); z <= cz + r; z++) for (let x = Math.floor(cx - r); x <= cx + r; x++) if (x >= 0 && z >= 0 && x < N && z < N && Math.hypot(x - cx, z - cz) <= r) a[z * N + x] = 1; };
+
+  // 1) أقنعة: طرق، وعوائق (مزارع/دوائر/تلال/أحواش)
+  for (const r of VILLAGE.roads) for (let i = 0; i < r.pts.length - 1; i++) stampLine(roadMask, N, r.pts[i], r.pts[i + 1], r.w / 2, r.strict ? 1 : 2);
+  for (const f of T.fields) stamp(obs, f[0] - 2, f[1] - 2, f[2] + 2, f[3] + 2);
+  for (const c of T.circles) disc(obs, c.x, c.z, c.r + 3);
+  for (const m of T.mounds) disc(obs, m.x, m.z, m.r + 3);
+  for (const y of VILLAGE.yards) stamp(obs, y.x0 - 1, y.z0 - 1, y.x1 + 1, y.z1 + 1);
+
+  // 2) رسم الطرق على الأرض قبل بناء المنازل
+  for (let z = 0; z < N; z++) for (let x = 0; x < N; x++) { const m = roadMask[z * N + x]; if (m) paintPath(w, x, z, m === 1); }
+
+  // 3) توزيع المنازل داخل الأحياء بفراغات أزقة
+  const houses = [], inEll = (c, px, pz) => { const a = Math.abs((px - c.cx) / c.rx), b = Math.abs((pz - c.cz) / c.rz); return a * a * a + b * b * b <= 1; };   // شكل شبه مستطيل بحواف مستديرة
+  const blocked = (x, z, ww, dd) => {
+    for (let Z = z - 1; Z <= z + dd; Z++) for (let X = x - 1; X <= x + ww; X++) {
+      if (X < 1 || Z < 1 || X >= N - 1 || Z >= N - 1) return true;
+      if (obs[Z * N + X]) return true;
+      const inside = X >= x && X < x + ww && Z >= z && Z < z + dd;
+      if (inside && roadMask[Z * N + X]) return true;           // الطريق ممنوع تحت المبنى، ويُسمح بالتماس معه
+    } return false;
+  };
+  for (const c of VILLAGE.clusters) {
+    let placed = 0;
+    // مسح منظّم من الشمال إلى الجنوب ومن الغرب إلى الشرق: يملأ الحي بكثافة مع أزقة ضيقة
+    for (let z = Math.floor(c.cz - c.rz); z <= c.cz + c.rz && placed < c.n; z++) {
+      for (let x = Math.floor(c.cx - c.rx); x <= c.cx + c.rx && placed < c.n; x++) {
+        if (rng() < .08) continue;
+        for (let t = 0; t < 6; t++) {
+          const ww = 7 + ((rng() * 7) | 0), dd = 7 + ((rng() * 5) | 0);
+          if (!inEll(c, x, z) || !inEll(c, x + ww - 1, z) || !inEll(c, x, z + dd - 1) || !inEll(c, x + ww - 1, z + dd - 1)) continue;
+          if (blocked(x, z, ww, dd)) continue;
+          const gap = rng() < .65 ? 1 : 2; let bad = false;
+          for (const o of houses) if (x < o.x + o.w + gap && x + ww + gap > o.x && z < o.z + o.d + gap && z + dd + gap > o.z) { bad = true; break; }
+          if (bad) continue;
+          houses.push({ id: houses.length + 1, cluster: c.id, x, z, w: ww, d: dd, floors: rng() < .35 ? 2 : 1 });
+          placed++; x += ww; break;
+        }
+      }
+    }
+  }
+  for (const h of houses) for (let Z = h.z; Z < h.z + h.d; Z++) for (let X = h.x; X < h.x + h.w; X++) occH[Z * N + X] = 1;
+
+  // 4) اختيار جهة الباب: نحو أكثر فراغ/طريق قريب
+  const free = (x, z) => x > 0 && z > 0 && x < N - 1 && z < N - 1 && !occH[z * N + x] && !obs[z * N + x];
+  for (const h of houses) {
+    const mx = h.x + (h.w >> 1), mz = h.z + (h.d >> 1); let best = null, bs = -1;
+    for (const s of ['n', 's', 'e', 'w']) {
+      let sc = 0;
+      for (let k = -1; k <= 1; k++) for (let dep = 1; dep <= 3; dep++) {
+        const px = s === 'n' || s === 's' ? mx + k : (s === 'e' ? h.x + h.w - 1 + dep : h.x - dep);
+        const pz = s === 'e' || s === 'w' ? mz + k : (s === 's' ? h.z + h.d - 1 + dep : h.z - dep);
+        if (free(px, pz)) sc += 1 + (roadMask[pz * N + px] ? 2 : 0);
+      }
+      sc += rng() * .6; if (sc > bs) { bs = sc; best = s; }
+    }
+    const offX = h.x + 1 + ((rng() * (h.w - 2)) | 0), offZ = h.z + 1 + ((rng() * (h.d - 2)) | 0);
+    h.face = best;
+    h.door = best === 'n' ? { x: offX, z: h.z, ox: offX, oz: h.z - 1 } : best === 's' ? { x: offX, z: h.z + h.d - 1, ox: offX, oz: h.z + h.d }
+           : best === 'e' ? { x: h.x + h.w - 1, z: offZ, ox: h.x + h.w, oz: offZ } : { x: h.x, z: offZ, ox: h.x - 1, oz: offZ };
+  }
+
+  // 5) تسوية الأرض ثم بناء الأحواش والمنازل
+  for (const y of VILLAGE.yards) levelArea(w, y.x0 - 1, y.z0 - 1, y.x1 + 1, y.z1 + 1);
+  for (const h of houses) levelArea(w, h.x - 1, h.z - 1, h.x + h.w, h.z + h.d);
+  for (const y of VILLAGE.yards) buildYard(w, y, rng);
+  for (const h of houses) h.plan = planInterior(h, rng);     // قد يخفض المنزل لطابق واحد إن لم يتسع السلم
+  for (const h of houses) buildHouse(w, h, rng);
+  for (const h of houses) buildInterior(w, h, rng);          // غرف، أبواب، نوافذ، أثاث، سلالم
+
+  // 6) حواف ترابية حول المنازل ومدخل الباب (أزقة)
+  w.finalize();
+  for (const h of houses) {
+    for (let Z = h.z - 1; Z <= h.z + h.d; Z++) for (let X = h.x - 1; X <= h.x + h.w; X++) {
+      const ring = X === h.x - 1 || X === h.x + h.w || Z === h.z - 1 || Z === h.z + h.d;
+      if (ring && !occH[Z * N + X] && !obs[Z * N + X]) paintPath(w, X, Z, true);
+    }
+    for (let k = 1; k <= 3; k++) {
+      const px = h.door.ox + (h.face === 'e' ? k - 1 : h.face === 'w' ? -(k - 1) : 0), pz = h.door.oz + (h.face === 's' ? k - 1 : h.face === 'n' ? -(k - 1) : 0);
+      if (!occH[pz * N + px]) paintPath(w, px, pz, true);
+    }
+  }
+
+  // 7) أشجار داخل القرية بعيدة عن المنازل والطرق
+  const dil = new Uint8Array(N * N);
+  for (const h of houses) for (let Z = h.z - 2; Z <= h.z + h.d + 1; Z++) for (let X = h.x - 2; X <= h.x + h.w + 1; X++) dil[Z * N + X] = 1;
+  const occ = new Uint8Array((N >> 2) * (N >> 2)), V = T.village; let trees = 0;
+  for (let a = 0; a < 1500 && trees < 30; a++) {
+    const x = 70 + ((rng() * 120) | 0), z = 112 + ((rng() * 100) | 0), i = z * N + x;
+    if (dil[i] || obs[i] || roadMask[i] || Math.hypot((x - V.cx) / V.rx, (z - V.cz) / V.rz) > 1) continue;
+    const y = w.colBase[i] - 1; if (y !== G) continue;
+    const top = w.data[i * w.sy + y]; if (top === B.PATH || top === B.SOIL || top === B.CROP || top === B.CROP2 || top === B.STONE) continue;
+    if (w.data[i * w.sy + G + 1]) continue;
+    const oc = (z >> 2) * (N >> 2) + (x >> 2); if (occ[oc] || rng() > .35) continue; occ[oc] = 1;
+    plantTree(w, x, z, G, rng); trees++;
+  }
+  w.finalize();
+  w.village = { houses, yards: VILLAGE.yards, trees };
+  return w.village;
+}
+
+// لاعب منظور الشخص الأول — المرحلة 5: فيزياء مكعبات (تصادم، قفز، صعود درجة تلقائي) + اختيار الأبواب
+const PH = { SPEED: 5.0, JUMP: 8.6, GRAV: 26, HW: 0.3, H: 1.8, EYE: 1.62, REACH: 3.4 };
+
+class Player {
+  constructor(world) {
+    this.w = world; this.x = 0; this.y = 0; this.z = 0; this.vx = 0; this.vy = 0; this.vz = 0;
+    this.yaw = 0; this.pitch = 0; this.onGround = false; this.camOff = 0;
+  }
+  place(x, y, z, yaw) {
+    this.x = x; this.y = y; this.z = z; this.vx = this.vy = this.vz = 0;
+    this.yaw = yaw || 0; this.pitch = 0; this.onGround = false; this.camOff = 0;
+  }
+  // هل يتقاطع صندوق اللاعب مع مكعب صلب؟
+  collides(x, y, z) {
+    const w = this.w, e = 1e-4, x0 = Math.floor(x - PH.HW + e), x1 = Math.floor(x + PH.HW - e);
+    const y0 = Math.floor(y + e), y1 = Math.floor(y + PH.H - e), z0 = Math.floor(z - PH.HW + e), z1 = Math.floor(z + PH.HW - e);
+    for (let yy = y0; yy <= y1; yy++) for (let zz = z0; zz <= z1; zz++) for (let xx = x0; xx <= x1; xx++) if (w.get(xx, yy, zz)) return true;
+    return false;
+  }
+  eye() { return [this.x, this.y + PH.EYE + this.camOff, this.z]; }
+  dir() { const cp = Math.cos(this.pitch); return [Math.sin(this.yaw) * cp, Math.sin(this.pitch), -Math.cos(this.yaw) * cp]; }
+  _moveH(ax, d) {
+    if (!d) return;
+    const nx = ax === 0 ? this.x + d : this.x, nz = ax === 1 ? this.z + d : this.z;
+    if (!this.collides(nx, this.y, nz)) { this.x = nx; this.z = nz; return; }
+    // درجة بارتفاع مكعب واحد: نصعدها تلقائيًا إذا كان فوقها فراغ كافٍ
+    if (this.onGround && !this.collides(this.x, this.y + 1.001, this.z) && !this.collides(nx, this.y + 1.001, nz)) {
+      this.x = nx; this.z = nz; this.y += 1; this.camOff -= 1; return;
+    }
+    if (ax === 0) this.vx = 0; else this.vz = 0;
+  }
+  _moveY(d) {
+    const ny = this.y + d;
+    if (!this.collides(this.x, ny, this.z)) { this.y = ny; return; }
+    if (d < 0) { this.y = Math.floor(ny) + 1; this.vy = 0; this.onGround = true; }       // هبوط على سطح مكعب
+    else { this.y = Math.floor(ny + PH.H) - PH.H - 0.001; this.vy = 0; }                  // ارتطام الرأس بسقف
+  }
+  // inp: { fwd, str (من -1 إلى 1), jump }
+  update(dt, inp) {
+    dt = Math.min(dt, 0.05); if (dt <= 0) return;
+    const sy = Math.sin(this.yaw), cy = Math.cos(this.yaw);
+    const tvx = (sy * inp.fwd + cy * inp.str) * PH.SPEED, tvz = (-cy * inp.fwd + sy * inp.str) * PH.SPEED;
+    const k = 1 - Math.exp(-(this.onGround ? 16 : 5) * dt);
+    this.vx += (tvx - this.vx) * k; this.vz += (tvz - this.vz) * k;
+    if (inp.jump && this.onGround) { this.vy = PH.JUMP; this.onGround = false; }
+    this.vy = Math.max(-40, this.vy - PH.GRAV * dt);
+    const n = Math.max(1, Math.ceil(Math.max(Math.abs(this.vx), Math.abs(this.vz), Math.abs(this.vy)) * dt / 0.2)), sdt = dt / n;
+    for (let i = 0; i < n; i++) { this._moveH(0, this.vx * sdt); this._moveH(1, this.vz * sdt); this._moveY(this.vy * sdt); }
+    this.onGround = this.vy <= 0 && this.collides(this.x, this.y - 0.01, this.z);
+    this.camOff += (0 - this.camOff) * Math.min(1, dt * 10);
+  }
+  // هل يتقاطع الصندوق مع خلية باب المنزل؟ (لمنع إغلاق الباب على اللاعب)
+  inDoor(h) {
+    const G = CFG.SEA, d = h.door;
+    return Math.abs(this.x - (d.x + .5)) < PH.HW + .5 && Math.abs(this.z - (d.z + .5)) < PH.HW + .5 && this.y < G + 3 && this.y + PH.H > G + 1;
+  }
+}
+
+// خريطة خلايا الأبواب الرئيسية: فهرس العمود -> رقم المنزل+1
+function buildDoorMap(world, houses) {
+  const m = new Int16Array(world.sx * world.sz);
+  houses.forEach((h, i) => { m[h.door.z * world.sx + h.door.x] = i + 1; });
+  return m;
+}
+// شعاع عبر المكعبات (DDA): أول باب رئيسي ضمن المدى قبل أي جدار صلب
+function pickDoor(w, map, houses, o, d, maxD) {
+  const G = CFG.SEA; let x = Math.floor(o[0]), y = Math.floor(o[1]), z = Math.floor(o[2]);
+  const sx = d[0] > 0 ? 1 : -1, sy = d[1] > 0 ? 1 : -1, sz = d[2] > 0 ? 1 : -1;
+  const dx = Math.abs(d[0]) > 1e-9 ? Math.abs(1 / d[0]) : Infinity, dy = Math.abs(d[1]) > 1e-9 ? Math.abs(1 / d[1]) : Infinity, dz = Math.abs(d[2]) > 1e-9 ? Math.abs(1 / d[2]) : Infinity;
+  let tx = d[0] > 0 ? (x + 1 - o[0]) * dx : (o[0] - x) * dx, ty = d[1] > 0 ? (y + 1 - o[1]) * dy : (o[1] - y) * dy, tz = d[2] > 0 ? (z + 1 - o[2]) * dz : (o[2] - z) * dz;
+  if (!isFinite(tx)) tx = Infinity; if (!isFinite(ty)) ty = Infinity; if (!isFinite(tz)) tz = Infinity;
+  for (let t = 0; t <= maxD;) {
+    if (y >= G + 1 && y <= G + 2 && x >= 0 && z >= 0 && x < w.sx && z < w.sz) { const id = map[z * w.sx + x]; if (id) return houses[id - 1]; }
+    if (w.get(x, y, z)) return null;
+    if (tx <= ty && tx <= tz) { t = tx; tx += dx; x += sx; } else if (ty <= tz) { t = ty; ty += dy; y += sy; } else { t = tz; tz += dz; z += sz; }
+  }
+  return null;
+}
+
+// مُصيِّر WebGL2: ألوان رؤوس + ضباب + مقطع أفقي + إخفاء القطع خارج الرؤية والبعيدة
+class Renderer {
+  constructor(canvas) {
+    this.canvas = canvas;
+    const gl = canvas.getContext('webgl2', { antialias: false, alpha: false, powerPreference: 'high-performance' });
+    if (!gl) throw new Error('هذا الجهاز لا يدعم WebGL2');
+    this.gl = gl;
+    const vs = `#version 300 es
+precision highp float;
+layout(location=0) in vec3 aPos; layout(location=1) in vec3 aCol;
+uniform mat4 uVP; uniform vec3 uCam;
+out vec3 vCol; out float vDist; out float vY;
+void main(){ vCol=aCol; vY=aPos.y; vDist=distance(aPos,uCam); gl_Position=uVP*vec4(aPos,1.0); }`.trim();
+    const fs = `#version 300 es
+precision mediump float;
+in vec3 vCol; in float vDist; in float vY;
+uniform vec3 uFog; uniform vec2 uRange; uniform float uClip;
+out vec4 o;
+void main(){ if (vY > uClip) discard; float f=clamp((vDist-uRange.x)/(uRange.y-uRange.x),0.0,1.0); o=vec4(mix(vCol,uFog,f),1.0); }`.trim();
+    this.prog = this._program(vs, fs);
+    this.u = {
+      vp: gl.getUniformLocation(this.prog, 'uVP'), cam: gl.getUniformLocation(this.prog, 'uCam'),
+      fog: gl.getUniformLocation(this.prog, 'uFog'), range: gl.getUniformLocation(this.prog, 'uRange'),
+      clip: gl.getUniformLocation(this.prog, 'uClip'),
+    };
+    this.sky = [0.72, 0.82, 0.92];
+    this.fogFar = 170; this.aspect = 1; this.clipY = 1000;
+    this.planes = new Float32Array(24);
+    gl.enable(gl.DEPTH_TEST); gl.enable(gl.CULL_FACE); gl.cullFace(gl.BACK);
+  }
+  _shader(type, src) {
+    const gl = this.gl, s = gl.createShader(type);
+    gl.shaderSource(s, src); gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error('shader: ' + gl.getShaderInfoLog(s));
+    return s;
+  }
+  _program(vs, fs) {
+    const gl = this.gl, p = gl.createProgram();
+    gl.attachShader(p, this._shader(gl.VERTEX_SHADER, vs));
+    gl.attachShader(p, this._shader(gl.FRAGMENT_SHADER, fs));
+    gl.linkProgram(p);
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error('link: ' + gl.getProgramInfoLog(p));
+    return p;
+  }
+  // m: من meshChunk {buf, idx, count, itype}؛ b: كرة الإحاطة {x,y,z,r}
+  upload(m, b) {
+    const gl = this.gl, vao = gl.createVertexArray();
+    gl.bindVertexArray(vao);
+    const vbo = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, vbo); gl.bufferData(gl.ARRAY_BUFFER, m.buf, gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 16, 0);
+    gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 4, gl.UNSIGNED_BYTE, true, 16, 12);
+    const ibo = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, m.idx, gl.STATIC_DRAW);
+    gl.bindVertexArray(null);
+    return { vao, vbo, ibo, count: m.count, b, itype: m.itype === 'u16' ? gl.UNSIGNED_SHORT : gl.UNSIGNED_INT };
+  }
+  free(g) { const gl = this.gl; gl.deleteBuffer(g.vbo); gl.deleteBuffer(g.ibo); gl.deleteVertexArray(g.vao); }
+  setFog(far) { this.fogFar = far; }
+  setClip(y) { this.clipY = y; }          // مقطع أفقي: يخفي كل ما فوق هذا الارتفاع
+  // cap: أقصى ارتفاع للرسم بالبكسل، factor: معامل الدقة التكيفية
+  resize(cap, factor) {
+    const dpr = window.devicePixelRatio || 1, cw = window.innerWidth, ch = window.innerHeight;
+    const h = Math.min(ch * dpr, cap) * factor, w = h * cw / ch;
+    this.canvas.width = Math.max(2, Math.round(w)); this.canvas.height = Math.max(2, Math.round(h));
+    this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+    this.aspect = this.canvas.width / this.canvas.height;
+  }
+  // مستويات الرؤية الستة من مصفوفة الإسقاط×العرض
+  setFrustum(vp) {
+    const p = this.planes, rows = [0, 1, 2].map(i => [vp[i], vp[4 + i], vp[8 + i], vp[12 + i]]), r3 = [vp[3], vp[7], vp[11], vp[15]];
+    let k = 0;
+    for (const r of rows) for (const s of [1, -1]) {
+      const a = r3[0] + s * r[0], b = r3[1] + s * r[1], c = r3[2] + s * r[2], d = r3[3] + s * r[3], l = Math.hypot(a, b, c) || 1;
+      p[k++] = a / l; p[k++] = b / l; p[k++] = c / l; p[k++] = d / l;
+    }
+  }
+  visible(b) {
+    const p = this.planes;
+    for (let k = 0; k < 24; k += 4) if (p[k] * b.x + p[k + 1] * b.y + p[k + 2] * b.z + p[k + 3] < -b.r) return false;
+    return true;
+  }
+  render(meshes, vp, cx, cy, cz, maxDist = Infinity) {
+    const gl = this.gl; let drawn = 0;
+    gl.clearColor(this.sky[0], this.sky[1], this.sky[2], 1);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.useProgram(this.prog);
+    gl.uniformMatrix4fv(this.u.vp, false, vp);
+    gl.uniform3f(this.u.cam, cx, cy, cz);
+    gl.uniform3fv(this.u.fog, this.sky);
+    gl.uniform2f(this.u.range, this.fogFar * 0.6, this.fogFar);
+    gl.uniform1f(this.u.clip, this.clipY);
+    this.setFrustum(vp);
+    for (const m of meshes) {
+      if (m.b) {
+        if (!this.visible(m.b)) continue;
+        if (Math.hypot(m.b.x - cx, m.b.y - cy, m.b.z - cz) - m.b.r > maxDist) continue;   // تقليم البعيد
+      }
+      gl.bindVertexArray(m.vao); gl.drawElements(gl.TRIANGLES, m.count, m.itype, 0); drawn++;
+    }
+    gl.bindVertexArray(null);
+    return drawn;
+  }
+}
+
+// أدوات التحكم باللمس: عصا حركة عائمة يسارًا، سحب لليمين للنظر، أزرار قفز وفتح. ودعم لوحة المفاتيح والفأرة.
+function createControls(root, bJump, bUse, onMenu) {
+  const base = document.getElementById('stickBase'), knob = document.getElementById('stickKnob'), R = 56;
+  let stick = null, look = null, lx = 0, ly = 0, jumpHeld = false, useEdge = false;
+  const keys = {};
+  root.addEventListener('pointerdown', e => {
+    e.preventDefault(); try { root.setPointerCapture(e.pointerId); } catch (_) {}
+    const left = e.pointerType !== 'mouse' && e.clientX < window.innerWidth * 0.42;
+    if (left && !stick) {
+      stick = { id: e.pointerId, x: e.clientX, y: e.clientY, dx: 0, dy: 0 };
+      base.style.display = 'block'; base.style.left = (e.clientX - R) + 'px'; base.style.top = (e.clientY - R) + 'px'; knob.style.transform = 'translate(0px,0px)';
+    } else if (!look) look = { id: e.pointerId, x: e.clientX, y: e.clientY };
+  });
+  root.addEventListener('pointermove', e => {
+    if (stick && e.pointerId === stick.id) {
+      let dx = e.clientX - stick.x, dy = e.clientY - stick.y; const m = Math.hypot(dx, dy);
+      if (m > R) { dx *= R / m; dy *= R / m; }
+      knob.style.transform = 'translate(' + dx + 'px,' + dy + 'px)'; stick.dx = dx / R; stick.dy = dy / R;
+    } else if (look && e.pointerId === look.id) {
+      lx += e.clientX - look.x; ly += e.clientY - look.y; look.x = e.clientX; look.y = e.clientY;
+    }
+  });
+  const end = e => {
+    if (stick && e.pointerId === stick.id) { stick = null; base.style.display = 'none'; }
+    if (look && e.pointerId === look.id) look = null;
+  };
+  root.addEventListener('pointerup', end); root.addEventListener('pointercancel', end);
+  bJump.addEventListener('pointerdown', e => { e.preventDefault(); jumpHeld = true; });
+  const jr = () => { jumpHeld = false; }; bJump.addEventListener('pointerup', jr); bJump.addEventListener('pointercancel', jr); bJump.addEventListener('pointerleave', jr);
+  bUse.addEventListener('pointerdown', e => { e.preventDefault(); useEdge = true; });
+  window.addEventListener('keydown', e => {
+    if (e.code === 'Escape') { onMenu(); return; }
+    if (e.code === 'KeyE' || e.code === 'KeyF') { if (!e.repeat) useEdge = true; return; }
+    keys[e.code] = true;
+  });
+  window.addEventListener('keyup', e => { keys[e.code] = false; });
+  return {
+    poll() {
+      let fwd = 0, str = 0;
+      if (stick) { const mag = Math.hypot(stick.dx, stick.dy); if (mag > 0.12) { const k = (mag - 0.12) / 0.88 / mag; fwd = -stick.dy * k; str = stick.dx * k; } }
+      if (keys.KeyW || keys.ArrowUp) fwd += 1; if (keys.KeyS || keys.ArrowDown) fwd -= 1;
+      if (keys.KeyD || keys.ArrowRight) str += 1; if (keys.KeyA || keys.ArrowLeft) str -= 1;
+      const m = Math.hypot(fwd, str); if (m > 1) { fwd /= m; str /= m; }
+      const o = { fwd, str, jump: jumpHeld || !!keys.Space, use: useEdge, lookX: lx, lookY: ly };
+      lx = ly = 0; useEdge = false; return o;
+    },
+    clear() { stick = look = null; jumpHeld = useEdge = false; lx = ly = 0; base.style.display = 'none'; },
+  };
+}
+
+function showError(msg) {
+  const el = document.getElementById('err');
+  el.style.display = 'block'; el.textContent = 'خطأ: ' + msg;
+}
+window.addEventListener('error', e => showError(e.message + (e.lineno ? ' (سطر ' + e.lineno + ')' : '')));
+window.addEventListener('unhandledrejection', e => showError(String(e.reason)));
+
+// حفظ الإعدادات والموقع وحالة الأبواب: localStorage + نسخة احتياطية عبر غلاف Flutter
+const Save = {
+  data: { quality: 'high', fps: true, pos: null, doors: [] },
+  load() {
+    try {
+      let raw = null;
+      try { raw = localStorage.getItem(CFG.SAVE_KEY); } catch (e) {}
+      if (!raw && window.__obSaved) raw = window.__obSaved;
+      const s = JSON.parse(raw || 'null');
+      if (s) Object.assign(this.data, s);
+    } catch (e) {}
+  },
+  store() {
+    const j = JSON.stringify(this.data);
+    try { localStorage.setItem(CFG.SAVE_KEY, j); } catch (e) {}
+    try { if (window.OBStore) window.OBStore.postMessage(j); } catch (e) {}
+  },
+};
+
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const VIEWER_FOG = 3;    // عارض التضاريس يرى أبعد
+const PLAY_FOG = 1.4;    // مدى الرؤية أثناء اللعب
+const LOOK_SENS = 0.0052;
+// مواقع جاهزة في وضع المعاينة
+const VIEWS = [
+  { n: 'عامة',    tx: 128, tz: 128, ty: 20, dist: 270, yaw: 0.3, pitch: 0.85 },
+  { n: 'القرية',  tx: 128, tz: 160, ty: 16, dist: 105, yaw: 0.4, pitch: 0.7 },
+  { n: 'الأزقة',  tx: 131, tz: 146, ty: 17, dist: 48,  yaw: 0.6, pitch: 0.55 },
+  { n: 'حي غربي', tx: 94,  tz: 160, ty: 17, dist: 50,  yaw: -0.5, pitch: 0.5 },
+  { n: 'حي شرقي', tx: 166, tz: 140, ty: 17, dist: 50,  yaw: 0.9, pitch: 0.5 },
+  { n: 'الوادي',  tx: 128, tz: 52,  ty: 14, dist: 90,  yaw: 0.5, pitch: 0.45 },
+  { n: 'المدرجات', tx: 110, tz: 16, ty: 28, dist: 85,  yaw: 0.2, pitch: 0.4 },
+  { n: 'المزارع', tx: 150, tz: 215, ty: 14, dist: 80,  yaw: -0.4, pitch: 0.5 },
+];
+
+function start() {
+  Save.load();
+  const $ = id => document.getElementById(id);
+  const canvas = $('c'), r = new Renderer(canvas), G = CFG.SEA;
+
+  let t = performance.now();
+  const world = generateTerrain();
+  const vil = buildVillage(world);
+  const tGen = Math.round(performance.now() - t); t = performance.now();
+  // استعادة الأبواب المفتوحة المحفوظة قبل التشبيك الأول
+  const savedDoors = Array.isArray(Save.data.doors) ? Save.data.doors : [];
+  for (const h of vil.houses) if (savedDoors.includes(h.id)) setDoor(world, h, true);
+
+  let aoOn = !!(CFG.QUALITY[Save.data.quality] || CFG.QUALITY.high).ao;
+  const meshes = [], gpu = new Map(); let tris = 0;
+  // تشبيك قطعة ورفعها (أو استبدال نسختها القديمة بعد فتح باب)
+  const putChunk = (cx, cz) => {
+    const ci = cz * world.cxN + cx, S = CFG.CHUNK, m = meshChunk(world, cx, cz, aoOn), old = gpu.get(ci), oi = old ? meshes.indexOf(old) : -1;
+    if (old) { r.free(old); gpu.delete(ci); if (oi >= 0) meshes.splice(oi, 1); }
+    if (!m.count) return 0;
+    const g = r.upload(m, { x: cx * S + S / 2, y: m.maxY / 2, z: cz * S + S / 2, r: Math.hypot(S / 2, S / 2, m.maxY / 2) + 1 });
+    gpu.set(ci, g); meshes.push(g); return m.count / 3;
+  };
+  for (let cz = 0; cz < world.czN; cz++) for (let cx = 0; cx < world.cxN; cx++) tris += putChunk(cx, cz);
+  const rebuildAll = () => { for (let cz = 0; cz < world.czN; cz++) for (let cx = 0; cx < world.cxN; cx++) putChunk(cx, cz); };
+  const tMesh = Math.round(performance.now() - t);
+
+  // ===== اللاعب =====
+  const player = new Player(world), doorMap = buildDoorMap(world, vil.houses);
+  const SPAWN = { x: 127.5, y: G + 1, z: 197.5, yaw: 0 };      // بداية القرية من الجنوب، النظر شمالًا
+  const respawn = () => player.place(SPAWN.x, SPAWN.y, SPAWN.z, SPAWN.yaw);
+  const p0 = Save.data.pos;
+  if (p0 && [p0.x, p0.y, p0.z, p0.yaw].every(Number.isFinite)) { player.place(p0.x, p0.y, p0.z, p0.yaw); if (player.collides(player.x, player.y, player.z)) respawn(); } else respawn();
+
+  const proj = M4.create(), view = M4.create(), vp = M4.create();
+  let factor = 1, slow = 0, fast = 0, avg = 16.7, last = performance.now(), shown = 0, lockUp = 0, drawn = 0, lastSave = 0, target = null, promptUntil = 0;
+  const hud = $('fps'), info = $('info'), qbtn = $('q'), vbtn = $('v'), abtn = $('a'), hbtn = $('h'), cbtn = $('c2'), dbtn = $('d'), pbtn = $('p');
+  const prompt = $('prompt'), bUse = $('bUse'), menu = $('menu');
+  info.textContent = 'بناء: ' + tGen + 'ms · تشبيك: ' + tMesh + 'ms · ' + Math.round(tris / 1000) + 'k مثلث · منازل ' + vil.houses.length + ' · غرف ' + vil.houses.reduce((a, h) => a + h.rooms.length, 0) + ' · أشجار ' + (world.info.trees + vil.trees);
+
+  let mode = 'play', menuOpen = false;
+  const cam = Object.assign({}, VIEWS[0]); let auto = true, vi = 0;
+  const CLIPS = [{ n: 'بدون', y: 1000 }, { n: 'الطابق الأرضي', y: G + 5.01 }, { n: 'الطابق العلوي', y: G + 9.01 }];
+  let ci = 0, hi = -1;
+
+  const savePlay = () => {
+    Save.data.pos = { x: +player.x.toFixed(2), y: +player.y.toFixed(2), z: +player.z.toFixed(2), yaw: +player.yaw.toFixed(3) };
+    Save.data.doors = vil.houses.filter(h => h.doorOpen).map(h => h.id); Save.store();
+  };
+  const applyQuality = () => {
+    const q = CFG.QUALITY[Save.data.quality] || CFG.QUALITY.high;
+    if (!!q.ao !== aoOn) { aoOn = !!q.ao; rebuildAll(); }
+    r.setFog(q.fog * (mode === 'play' ? PLAY_FOG : VIEWER_FOG)); r.resize(q.cap, factor);
+    qbtn.textContent = 'الجودة: ' + q.name; $('mQuality').textContent = 'الجودة: ' + q.name;
+    $('mFps').textContent = 'عدّاد FPS: ' + (Save.data.fps ? 'يعمل' : 'مخفي');
+  };
+  const label = () => {
+    vbtn.textContent = 'المنظر: ' + VIEWS[vi].n; abtn.textContent = 'جولة تلقائية: ' + (auto ? 'تشغيل' : 'إيقاف');
+    cbtn.textContent = 'قطع الأسطح: ' + CLIPS[ci].n; hbtn.textContent = hi < 0 ? 'منزل: اختر' : 'منزل ' + (hi + 1) + '/' + vil.houses.length;
+    r.setClip(mode === 'play' ? 1000 : CLIPS[ci].y);
+  };
+  const setMode = m => {
+    mode = m; document.body.className = 'mode-' + m; ctl.clear(); menuOpen = false; menu.classList.remove('open');
+    if (m === 'view') { Object.assign(cam, { tx: player.x, ty: G + 4, tz: player.z, dist: 60, yaw: player.yaw, pitch: 0.8 }); auto = false; }
+    else { prompt.style.display = 'none'; }
+    label(); applyQuality();
+  };
+  const openMenu = () => { menuOpen = true; menu.classList.add('open'); ctl.clear(); savePlay(); };
+  const closeMenu = () => { menuOpen = false; menu.classList.remove('open'); last = performance.now(); };
+  const cycleQuality = () => { const k = Object.keys(CFG.QUALITY), i = k.indexOf(Save.data.quality); Save.data.quality = k[(i + 1) % k.length]; Save.store(); applyQuality(); };
+
+  const ctl = createControls($('ctrl'), $('bJump'), bUse, () => { if (mode === 'play') (menuOpen ? closeMenu : openMenu)(); });
+  window.__back = () => {            // زر الرجوع: معاينة ← لعب ← قائمة ← خروج
+    if (mode === 'view') { setMode('play'); return 'stay'; }
+    if (!menuOpen) { openMenu(); return 'stay'; }
+    return 'exit';
+  };
+  window.__g = { world, vil, player };    // للاختبار
+
+  // فتح/إغلاق باب رئيسي مع إعادة تشبيك القطع المتأثرة
+  const remesh = chunks => { const cs = new Set(); for (const c of chunks) cs.add(c[0] + ',' + c[1]); for (const k of cs) { const [cx, cz] = k.split(',').map(Number); if (cx >= 0 && cz >= 0 && cx < world.cxN && cz < world.czN) putChunk(cx, cz); } };
+  const say = (txt, ms) => { prompt.textContent = txt; prompt.style.display = 'block'; promptUntil = performance.now() + ms; };
+  const toggleDoor = h => {
+    if (h.doorOpen && player.inDoor(h)) { say('ابتعد عن الباب أولًا', 1400); return; }
+    remesh(setDoor(world, h, !h.doorOpen)); savePlay();
+  };
+
+  // ===== أزرار القائمة =====
+  $('bMenu').addEventListener('click', () => (menuOpen ? closeMenu : openMenu)());
+  $('mResume').addEventListener('click', closeMenu);
+  $('mRespawn').addEventListener('click', () => { respawn(); closeMenu(); savePlay(); });
+  $('mQuality').addEventListener('click', cycleQuality);
+  $('mFps').addEventListener('click', () => { Save.data.fps = !Save.data.fps; if (!Save.data.fps) hud.textContent = ''; Save.store(); applyQuality(); });
+  $('mView').addEventListener('click', () => setMode('view'));
+
+  // ===== أزرار وضع المعاينة =====
+  pbtn.addEventListener('click', () => setMode('play'));
+  vbtn.addEventListener('click', () => { vi = (vi + 1) % VIEWS.length; Object.assign(cam, VIEWS[vi]); auto = false; label(); });
+  abtn.addEventListener('click', () => { auto = !auto; label(); });
+  qbtn.addEventListener('click', cycleQuality);
+  cbtn.addEventListener('click', () => { ci = (ci + 1) % CLIPS.length; label(); });
+  hbtn.addEventListener('click', () => {
+    hi = (hi + 1) % vil.houses.length; const h = vil.houses[hi];
+    Object.assign(cam, { tx: h.x + h.w / 2, tz: h.z + h.d / 2, ty: G + 2, dist: 18 + Math.max(h.w, h.d), yaw: 0.25, pitch: 1.1 });
+    auto = false; if (ci === 0) ci = 1; label();
+  });
+  dbtn.addEventListener('click', () => {
+    const R = cam.dist < 70 ? 16 : 40, near = vil.houses.filter(h => Math.hypot(h.door.x - cam.tx, h.door.z - cam.tz) < R);
+    if (!near.length) return;
+    const open = !near.every(h => h.doorOpen), cs = [];
+    for (const h of near) for (const c of setDoor(world, h, open)) cs.push(c);
+    remesh(cs); dbtn.textContent = open ? 'الأبواب القريبة: مفتوحة' : 'الأبواب القريبة: مغلقة';
+  });
+  window.addEventListener('resize', applyQuality);
+  document.addEventListener('visibilitychange', () => { if (document.hidden && mode === 'play') savePlay(); });
+  canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); showError('فقد الجهاز سياق الرسم، أعد فتح اللعبة'); });
+
+  // ===== تحكم كاميرا المعاينة =====
+  const ptrs = new Map(); let pinch = 0;
+  const dist2 = () => { const a = [...ptrs.values()]; return Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y); };
+  canvas.addEventListener('pointerdown', e => {
+    if (mode !== 'view') return;
+    canvas.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (auto) { auto = false; label(); }
+    pinch = ptrs.size === 2 ? dist2() : 0;
+  });
+  canvas.addEventListener('pointermove', e => {
+    const p = ptrs.get(e.pointerId); if (!p || mode !== 'view') return;
+    const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
+    if (ptrs.size === 1) { cam.yaw -= dx * 0.006; cam.pitch = clamp(cam.pitch + dy * 0.005, 0.08, 1.5); }
+    else if (ptrs.size === 2) { const d = dist2(); if (pinch > 0 && d > 0) cam.dist = clamp(cam.dist * pinch / d, 25, 480); pinch = d; }
+  });
+  const up = e => { ptrs.delete(e.pointerId); pinch = 0; };
+  canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
+  canvas.addEventListener('wheel', e => { if (mode !== 'view') return; e.preventDefault(); cam.dist = clamp(cam.dist * (1 + e.deltaY * 0.001), 25, 480); }, { passive: false });
+
+  setMode('play');
+
+  function frame(now) {
+    requestAnimationFrame(frame);
+    const rawDt = Math.max(0, now - last); last = now;
+    avg += (rawDt - avg) * 0.05;
+    // دقة رسم تكيفية: تنخفض عند التقطّع وترتفع عند الاستقرار
+    if (avg > 19.5) { slow++; fast = 0; } else if (avg < 17.6) { fast++; slow = 0; } else { slow = fast = 0; }
+    if (slow > 40 && factor > 0.6) { factor = Math.max(0.6, factor - 0.08); slow = 0; lockUp = now + 15000; applyQuality(); }
+    else if (fast > 240 && factor < 1 && now > lockUp) { factor = Math.min(1, factor + 0.04); fast = 0; applyQuality(); }
+
+    let ex, ey, ez;
+    if (mode === 'play') {
+      if (!menuOpen) {
+        const inp = ctl.poll();
+        player.yaw += inp.lookX * LOOK_SENS; player.pitch = clamp(player.pitch - inp.lookY * LOOK_SENS, -1.45, 1.45);
+        player.update(rawDt / 1000, inp);
+        if (inp.use && target) toggleDoor(target);
+        if (now - lastSave > 4000) { lastSave = now; savePlay(); }
+      }
+      [ex, ey, ez] = player.eye(); const d = player.dir();
+      // الباب المستهدف: يظهر زر الفتح/الإغلاق ونص التلميح
+      const tg = pickDoor(world, doorMap, vil.houses, [ex, ey, ez], d, PH.REACH);
+      if (tg !== target || now > promptUntil) {
+        target = tg;
+        if (tg) { prompt.textContent = tg.doorOpen ? 'إغلاق الباب' : 'فتح الباب'; prompt.style.display = 'block'; bUse.textContent = tg.doorOpen ? 'إغلاق' : 'فتح'; bUse.classList.add('on'); promptUntil = 0; }
+        else { prompt.style.display = 'none'; bUse.textContent = 'فتح'; bUse.classList.remove('on'); }
+      }
+      M4.perspective(proj, 1.2, r.aspect, 0.1, 700);
+      M4.lookAt(view, ex, ey, ez, ex + d[0], ey + d[1], ez + d[2], 0, 1, 0);
+    } else {
+      if (auto) cam.yaw += rawDt * 0.00012;
+      const cp = Math.cos(cam.pitch);
+      ex = clamp(cam.tx + cam.dist * cp * Math.sin(cam.yaw), 1, world.sx - 2);
+      ey = Math.max(G + 4, cam.ty + cam.dist * Math.sin(cam.pitch));
+      ez = clamp(cam.tz + cam.dist * cp * Math.cos(cam.yaw), 1, world.sz - 2);
+      M4.perspective(proj, 1.0, r.aspect, 0.5, 900);
+      M4.lookAt(view, ex, ey, ez, cam.tx, cam.ty, cam.tz, 0, 1, 0);
+    }
+    M4.multiply(vp, proj, view);
+    drawn = r.render(meshes, vp, ex, ey, ez, mode === 'play' ? r.fogFar + 12 : 600);
+
+    if (now - shown > 500) {
+      shown = now;
+      if (Save.data.fps) hud.textContent = 'FPS ' + Math.round(1000 / avg) + '  |  ' + canvas.width + 'x' + canvas.height + '  |  scale ' + (Math.round(factor * 100) / 100) + '  |  chunks ' + drawn + '/' + meshes.length;
+    }
+  }
+  requestAnimationFrame(frame);
+}
+
+setTimeout(() => {
+  try { start(); } catch (e) { showError(e.message || String(e)); }
+  const l = document.getElementById('loading'); if (l) l.style.display = 'none';
+}, 80);
+
+</script>
+</body>
+</html>

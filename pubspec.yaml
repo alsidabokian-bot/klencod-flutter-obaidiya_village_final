@@ -1,0 +1,19 @@
+name: obaidiya_village
+description: قرية العبيدية - لعبة استكشاف ثلاثية الأبعاد بأسلوب المكعبات.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+  flutter: '>=3.22.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  webview_flutter: ^4.10.0
+  shared_preferences: ^2.2.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/game/index.html
